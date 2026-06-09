@@ -1,62 +1,30 @@
-name: Build & Deploy APK
+name: Build APK
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
-# 修复 Node.js 24 环境，消除警告
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  GRADLE_OPTS: '-Xmx4096m'
-
 jobs:
-  build_apk:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
 
-      # 固定使用 JDK17，兼容我们的项目
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v4.4.0
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # 安卓 SDK
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Grant gradlew exec permission
+        run: chmod +x ./gradlew
 
-      # 权限必须加
-      - name: Grant gradlew permission
-        run: chmod +x gradlew
-
-      # 只编译 Debug 包（最稳定、不报错、可直接安装）
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
-      # 上传 APK
-      - name: Upload debug APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: VideoRecorder-Debug
+          name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
-
-      # 自动发布到 Release
-      - name: Create version tag
-        run: echo "TAG=v$(date +%Y%m%d%H%M)" >> $GITHUB_ENV
-
-      - name: Deploy to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.TAG }}
-          name: 视频录制APP ${{ env.TAG }}
-          body: |
-            ✅ 自动编译版本
-            ✅ 分辨率设置
-            ✅ 时间戳 + 地理位置水印
-            ✅ 定时分段录制
-            ✅ 前后摄像头 / 闪光灯 / 静音
-          files: app/build/outputs/apk/debug/app-debug.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
